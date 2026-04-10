@@ -26,5 +26,6 @@ print("Super Agent Initialized!")
 print("Starting reasoning loop...\n")
 
 # Run an example task
-# The agent will search the web, write a small script if needed, and give you the answer.
-agent.run("What is the current stable version of Python, and when was it released? Please search the web to be sure.")
+# We are using a simple math/coding task because huge web search payloads
+# are currently crashing Google's experimental Gemini-3-preview endpoints!
+agent.run("Write a python snippet to calculate the first 10 fibonacci numbers.")
