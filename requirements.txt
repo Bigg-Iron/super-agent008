@@ -1,3 +1,6 @@
 smolagents
 python-dotenv
 litellm
+duckduckgo-search
+gradio
+chromadb
