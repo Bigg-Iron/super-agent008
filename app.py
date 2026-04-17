@@ -2,28 +2,24 @@ import os
 import glob
 from dotenv import load_dotenv
 from smolagents import CodeAgent, DuckDuckGoSearchTool, LiteLLMModel, tool, GradioUI
-
-# Import our new Vector Database!
 import chromadb
 
-# Load environment variables
 load_dotenv()
 
-# Universal model routing. Ensure your selected provider API key is in .env
+# We are dropping the buggy 'preview' model for a highly stable production model
+# the 2.5-flash endpoint is currently globally rate limited (503 outage).
+# Reverting to the 3-preview sandbox since it has different traffic channels.
 model = LiteLLMModel(model_id="gemini/gemini-3-flash-preview")
 
 # ==========================================
 # 0. INITIALIZE LONG TERM MEMORY DB
 # ==========================================
 print("Loading Memory Database...")
-# This creates a folder called 'agent_memory' in your project to store data persistently
 chroma_client = chromadb.PersistentClient(path="./agent_memory")
-# A collection is basically a table in the database where our memories will live
 memory_collection = chroma_client.get_or_create_collection(name="long_term_memory")
 
-
 # ==========================================
-# 1. DEFINE CUSTOM TOOLS
+# 1. DEFINE BASE TOOLS
 # ==========================================
 
 @tool
@@ -59,6 +55,22 @@ def read_local_file(filepath: str) -> str:
         return f"Error reading file {filepath}: {str(e)}"
 
 @tool
+def write_to_local_file(filepath: str, content: str) -> str:
+    """
+    Writes text content to a local file. Use this to create new files or overwrite existing ones.
+    
+    Args:
+        filepath: The exact path to the file you want to write to.
+        content: The full text content you want to write into the file.
+    """
+    try:
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(content)
+        return f"Successfully wrote {len(content)} characters to {filepath}"
+    except Exception as e:
+        return f"Error writing file {filepath}: {str(e)}"
+
+@tool
 def save_memory(memory_key: str, information: str) -> str:
     """
     Saves an important fact, user preference, or context to your long-term memory database.
@@ -68,7 +80,6 @@ def save_memory(memory_key: str, information: str) -> str:
         information: The detailed information or fact you want to remember.
     """
     try:
-        # ChromaDB requires a unique ID and a document
         memory_collection.upsert(
             documents=[information],
             ids=[memory_key]
@@ -89,10 +100,9 @@ def recall_memory(search_query: str) -> str:
     try:
         results = memory_collection.query(
             query_texts=[search_query],
-            n_results=2 # Fetch top 2 most mathematically relevant memories
+            n_results=2 
         )
         
-        # Extract the documents from the result payload
         documents = results.get("documents", [])
         if not documents or not documents[0]:
             return f"No relevant memories found in database for query: '{search_query}'"
@@ -102,26 +112,72 @@ def recall_memory(search_query: str) -> str:
     except Exception as e:
         return f"Failed to recall from memory: {str(e)}"
 
+# ==========================================
+# 2. INITIALIZE WORKER AGENTS
+# ==========================================
+
+print("Hiring Worker Agents...")
+
+# This agent's only job is searching the internet
+web_researcher = CodeAgent(
+    tools=[DuckDuckGoSearchTool()], 
+    model=model
+)
+
+# This agent's only job is reading and writing local files
+local_engineer = CodeAgent(
+    tools=[inspect_local_workspace, read_local_file, write_to_local_file], 
+    model=model
+)
+
 
 # ==========================================
-# 2. INITIALIZE AGENT
+# 3. DEFINE DELEGATION TOOLS
 # ==========================================
 
-# We load our new tools into the agent's brain!
+@tool
+def delegate_to_researcher(question: str) -> str:
+    """
+    Passes a complex research question down to your Web Search Employee. 
+    Use this when you need live information from the internet. The worker will search and return a clean summary.
+    
+    Args:
+        question: The exact, detailed question you want the researcher to answer using the internet.
+    """
+    return web_researcher.run(question)
+
+@tool
+def delegate_to_engineer(task: str) -> str:
+    """
+    Passes a file system reading OR writing task down to your Local Engineer worker.
+    Use this when you need to read local files, AND ESPECIALLY when you need to CREATE or WRITE to local files. 
+    You do NOT have permission to use the open() function yourself. You MUST delegate file creation to this engineer!
+    
+    Args:
+        task: The exact instructions for the engineer (e.g. "Create a file named 'news.txt' with this exact content: ...")
+    """
+    return local_engineer.run(task)
+
+
+# ==========================================
+# 4. INITIALIZE MANAGER AGENT
+# ==========================================
+
+print("Initializing Executive Manager Agent...")
+
 agent = CodeAgent(
     tools=[
-        DuckDuckGoSearchTool(), 
-        inspect_local_workspace, 
-        read_local_file,
+        delegate_to_researcher, 
+        delegate_to_engineer,
         save_memory,
         recall_memory
     ], 
     model=model,
-    add_base_tools=True
+    add_base_tools=False
 )
 
 # ==========================================
-# 3. LAUNCH WEB UI
+# 5. LAUNCH WEB UI
 # ==========================================
 
 print("Initializing Gradio Web UI...")

@@ -1,0 +1,17 @@
+Google Gemini News Report - April 2026 Update
+
+The Gemini ecosystem has transitioned into a reasoning-first, agentic platform. Key highlights include:
+
+1. Gemini 3.1 Pro & 'Deep Think': Released in late February 2026, Gemini 3.1 Pro offers enhanced multi-step reasoning. The 'Deep Think' mode (launched Feb 28) enables chain-of-thought processing for complex technical and mathematical tasks.
+
+2. Apple Partnership: Google secured a $1 billion annual deal to power Siri on over 2 billion Apple devices with Gemini for advanced cloud-based reasoning.
+
+3. Gemini 4 Teasers: Google DeepMind is teasing Gemini 4, which is expected to feature 'Infinite Context' and robotics integration via AlphaEarth.
+
+4. Agentic AI & OS Integration: 
+   - Project Jarvis is now fully integrated into Chrome for autonomous web task performance.
+   - Android 17 uses Gemini as its core engine for proactive, system-level assistance.
+
+5. Specialized Models:
+   - Lyria 3: Latest model for high-fidelity AI music generation.
+   - Nano Banana 2: Ultra-efficient model optimized for Tensor G6 (Pixel 11) for on-device agentic features.
